@@ -1,10 +1,58 @@
+{-------------------------------------------------------------------------------
+
+  This Source Code Form is subject to the terms of the Mozilla Public
+  License, v. 2.0. If a copy of the MPL was not distributed with this
+  file, You can obtain one at http://mozilla.org/MPL/2.0/.
+
+-------------------------------------------------------------------------------}
+{===============================================================================
+
+  BasicUIM
+
+    Provides some very basic implementation management, namely routing of
+    function calls, method calls, objects and classes via variables.
+
+    Note that it was written for a specific purpose, and was never meant to be
+    some universal library. Threfore there is not much functionality and also
+    absolutely no documentation. But, I am open to suggestions, if anyone will
+    be interested.
+
+  Version 1.0 (2023-04-14)
+
+  Last change 2023-04-14
+
+  ©2023 František Milt
+
+  Contacts:
+    František Milt: frantisek.milt@gmail.com
+
+  Support:
+    If you find this code useful, please consider supporting its author(s) by
+    making a small donation using the following link(s):
+
+      https://www.paypal.me/FMilt
+
+  Changelog:
+    For detailed changelog and history please refer to this git repository:
+
+      github.com/TheLazyTomcat/Lib.BasicUIM
+
+  Dependencies:
+    none
+
+===============================================================================}
 unit BasicUIM;
+
+{$IFDEF FPC}
+  {$MODE ObjFpc}
+{$ENDIF}
+{$H+}
 
 interface
 
 uses
   SysUtils;
-{$message 'descriptions'}
+
 {===============================================================================
     Library-specific exceptions
 ===============================================================================}
@@ -19,11 +67,7 @@ type
 {===============================================================================
     Auxiliary functions - declaration
 ===============================================================================}
-{
-  Use this function to create a TMethod variable from separate code and data
-  pointers - see TUIMImplementedObject.Add methods for further details and
-  possible use case.
-}
+
 Function Method(Code,Data: Pointer): TMethod;
 
 {===============================================================================
@@ -34,10 +78,6 @@ Function Method(Code,Data: Pointer): TMethod;
 {===============================================================================
     TUIMCommonClass - class declaration
 ===============================================================================}
-{
-  TUIMCommonClass is here to remove a need for AuxClasses library, as it is not
-  desirable for this library to have any dependencies.
-}
 type
   TUIMCommonClass = class(TObject)
   protected
@@ -45,7 +85,7 @@ type
     procedure SetCapacity(Value: Integer); virtual; abstract;
     Function GetCount: Integer; virtual; abstract;
     class Function GrowDelta: Integer; virtual; abstract;
-    procedure Grow; virtual;
+    procedure Grow; virtual;  // only linear growth by GrowFactor
   public
     Function LowIndex: Integer; virtual; abstract;
     Function HighIndex: Integer; virtual; abstract;
@@ -56,13 +96,13 @@ type
 
 {===============================================================================
 --------------------------------------------------------------------------------
-                              TUIMImplementedObject
+                                   TUIMRouting
 --------------------------------------------------------------------------------
 ===============================================================================}
 type
   TUIMIdentifier = type Integer;
 
-  TUIMObjectType = (otFunction,otMethod,otObject,otClass);
+  TUIMRoutingType = (rtFunction,rtMethod,rtObject,rtClass);
 
   TUIMImplementationFlag = (ifSelect,ifAvailable,ifSupported);
   TUIMImplementationFlags = set of TUIMImplementationFlag;  
@@ -71,25 +111,25 @@ type
   TUIMImplementation = record
     ImplementationID:     TUIMIdentifier;
     ImplementationFlags:  TUIMImplementationFlags;
-    case ImplementorType: TUIMObjectType of
-      otFunction: (FunctionImplementor: Pointer);
-      otMethod:   (MethodImplementor:   TMethod);
-      otObject:   (ObjectImplementor:   TObject);
-      otClass:    (ClassImplementor:    TClass);
+    case ImplementorType: TUIMRoutingType of
+      rtFunction: (FunctionImplementor: Pointer);
+      rtMethod:   (MethodImplementor:   TMethod);
+      rtObject:   (ObjectImplementor:   TObject);
+      rtClass:    (ClassImplementor:    TClass);
   end;
 
 {===============================================================================
-    TUIMImplementedObject - class declaration
+    TUIMRouting - class declaration
 ===============================================================================}
 type
-  TUIMImplementedObject = class(TUIMCommonClass)
+  TUIMRouting = class(TUIMCommonClass)
   protected
-    fImplementedObjectID:       TUIMIdentifier;
-    fImplementedObjectType:     TUIMObjectType;
-    fImplementedObjectVarAddr:  Pointer;
-    fImplementations:           array of TUIMImplementation;
-    fImplementationCount:       Integer;
-    fSelectedIndex:             Integer;
+    fRoutingID:           TUIMIdentifier;
+    fRoutingType:         TUIMRoutingType;
+    fRoutingVarAddr:      Pointer;
+    fImplementations:     array of TUIMImplementation;
+    fImplementationCount: Integer;
+    fSelectedIndex:       Integer;
     Function GetImplementation(Index: Integer): TUIMImplementation; virtual;
     Function GetImplementationFlags(Index: Integer): TUIMImplementationFlags; virtual;
     procedure SetImplementationFlags(Index: Integer; Value: TUIMImplementationFlags); virtual;
@@ -98,14 +138,14 @@ type
     procedure SetCapacity(Value: Integer); override;
     Function GetCount: Integer; override;
     class Function GrowDelta: Integer; override;
-    procedure Initialize(ImplementedObjectID: TUIMIdentifier; ImplementedObjectType: TUIMObjectType; VarAddr: Pointer); virtual;
+    procedure Initialize(RoutingID: TUIMIdentifier; RoutingType: TUIMRoutingType; RoutingVarAddr: Pointer); virtual;
     procedure Finalize; virtual;
-    Function Add(ImplementationID: TUIMIdentifier; ImplementorType: TUIMObjectType; ImplementorPtr: Pointer; ImplementationFlags: TUIMImplementationFlags): Integer; overload; virtual;
+    Function Add(ImplementationID: TUIMIdentifier; ImplementorType: TUIMRoutingType; ImplementorPtr: Pointer; ImplementationFlags: TUIMImplementationFlags): Integer; overload; virtual;
   public
-    constructor Create(ImplementedObjectID: TUIMIdentifier; var FunctionVariable: Pointer); overload;
-    constructor Create(ImplementedObjectID: TUIMIdentifier; var MethodVariable: TMethod); overload;
-    constructor Create(ImplementedObjectID: TUIMIdentifier; var ObjectVariable: TObject); overload;
-    constructor Create(ImplementedObjectID: TUIMIdentifier; var ClassVariable: TClass); overload;
+    constructor Create(RoutingID: TUIMIdentifier; var FunctionVariable: Pointer); overload;
+    constructor Create(RoutingID: TUIMIdentifier; var MethodVariable: TMethod); overload;
+    constructor Create(RoutingID: TUIMIdentifier; var ObjectVariable: TObject); overload;
+    constructor Create(RoutingID: TUIMIdentifier; var ClassVariable: TClass); overload;
     destructor Destroy; override;
     Function LowIndex: Integer; override;
     Function HighIndex: Integer; override;
@@ -116,10 +156,6 @@ type
     Function Add(ImplementationID: TUIMIdentifier; MethodImplementorCode,MethodImplementorData: Pointer; ImplementationFlags: TUIMImplementationFlags = []): Integer; overload; virtual;
     Function Add(ImplementationID: TUIMIdentifier; ObjectImplementor: TObject; ImplementationFlags: TUIMImplementationFlags = []): Integer; overload; virtual;
     Function Add(ImplementationID: TUIMIdentifier; ClassImplementor: TClass; ImplementationFlags: TUIMImplementationFlags = []): Integer; overload; virtual;
-  {
-    If an implementation is removed or deleted, it is NOT automatically
-    deselected, value in routing variable stays as is.
-  }
     Function Remove(ImplementationID: TUIMIdentifier): Integer; virtual;
     procedure Delete(Index: Integer); virtual;
     procedure Clear; virtual;
@@ -132,11 +168,12 @@ type
     Function IsSelected(ImplementationID: TUIMIdentifier): Boolean; overload; virtual;
     Function SelectIndex(Index: Integer): TUIMIdentifier; virtual;
     procedure Select(ImplementationID: TUIMIdentifier); virtual;
+    procedure InvalidateSelection; virtual;
     procedure Deselect; virtual;
     Function CheckRouting: Boolean; virtual;
-    property ImplementedObjectID: TUIMIdentifier read fImplementedObjectID;
-    property ImplementedObjectType: TUIMObjectType read fImplementedObjectType;
-    property ImplementedObjectVariableAddress: Pointer read fImplementedObjectVarAddr;
+    property RoutingID: TUIMIdentifier read fRoutingID;
+    property RoutingType: TUIMRoutingType read fRoutingType;
+    property RoutingVariableAddress: Pointer read fRoutingVarAddr;
     property Implementations[Index: Integer]: TUIMImplementation read GetImplementation; default;
     property ImplementationsFlags[Index: Integer]: TUIMImplementationFlags read GetImplementationFlags write SetImplementationFlags;
     property ImplementationCount: Integer read GetCount;
@@ -154,37 +191,37 @@ type
 type
   TImplementationManager = class(TUIMCommonClass)
   protected
-    fImplementedObjects:      array of TUIMImplementedObject;
-    fImplementedObjectCount:  Integer;
-    Function GetImplementedObject(Index: Integer): TUIMImplementedObject; virtual;
+    fRoutings:      array of TUIMRouting;
+    fRoutingCount:  Integer;
+    Function GetRouting(Index: Integer): TUIMRouting; virtual;
     Function GetCapacity: Integer; override;
     procedure SetCapacity(Value: Integer); override;
     Function GetCount: Integer; override;
     class Function GrowDelta: Integer; override;
     procedure Initialize; virtual;
     procedure Finalize; virtual;
-    Function Add(ImplementedObjectID: TUIMIdentifier; ObjectType: TUIMObjectType; VarAddr: Pointer): Integer; overload; virtual;
+    Function Add(RoutingID: TUIMIdentifier; RoutingType: TUIMRoutingType; RoutingVarAddr: Pointer): Integer; overload; virtual;
   public
     constructor Create;
     destructor Destroy; override;
     Function LowIndex: Integer; override;
     Function HighIndex: Integer; override;
-    Function IndexOf(ImplementedObjectID: TUIMIdentifier): Integer; virtual;
-    Function Find(ImplementedObjectID: TUIMIdentifier; out Index: Integer): Boolean; virtual;
-    Function FindObj(ImplementedObjectID: TUIMIdentifier): TUIMImplementedObject; virtual;
-    Function Add(ImplementedObjectID: TUIMIdentifier; var FunctionVariable: Pointer): Integer; overload; virtual;
-    Function Add(ImplementedObjectID: TUIMIdentifier; var MethodVariable: TMethod): Integer; overload; virtual;
-    Function Add(ImplementedObjectID: TUIMIdentifier; var ObjectVariable: TObject): Integer; overload; virtual;
-    Function Add(ImplementedObjectID: TUIMIdentifier; var ClassVariable: TClass): Integer; overload; virtual;
-    Function AddObj(ImplementedObjectID: TUIMIdentifier; var FunctionVariable: Pointer): TUIMImplementedObject; overload; virtual;
-    Function AddObj(ImplementedObjectID: TUIMIdentifier; var MethodVariable: TMethod): TUIMImplementedObject; overload; virtual;
-    Function AddObj(ImplementedObjectID: TUIMIdentifier; var ObjectVariable: TObject): TUIMImplementedObject; overload; virtual;
-    Function AddObj(ImplementedObjectID: TUIMIdentifier; var ClassVariable: TClass): TUIMImplementedObject; overload; virtual;
-    Function Remove(ImplementedObjectID: TUIMIdentifier): Integer; virtual;
+    Function IndexOf(RoutingID: TUIMIdentifier): Integer; virtual;
+    Function Find(RoutingID: TUIMIdentifier; out Index: Integer): Boolean; virtual;
+    Function FindObj(RoutingID: TUIMIdentifier): TUIMRouting; virtual;
+    Function Add(RoutingID: TUIMIdentifier; var FunctionVariable: Pointer): Integer; overload; virtual;
+    Function Add(RoutingID: TUIMIdentifier; var MethodVariable: TMethod): Integer; overload; virtual;
+    Function Add(RoutingID: TUIMIdentifier; var ObjectVariable: TObject): Integer; overload; virtual;
+    Function Add(RoutingID: TUIMIdentifier; var ClassVariable: TClass): Integer; overload; virtual;
+    Function AddObj(RoutingID: TUIMIdentifier; var FunctionVariable: Pointer): TUIMRouting; overload; virtual;
+    Function AddObj(RoutingID: TUIMIdentifier; var MethodVariable: TMethod): TUIMRouting; overload; virtual;
+    Function AddObj(RoutingID: TUIMIdentifier; var ObjectVariable: TObject): TUIMRouting; overload; virtual;
+    Function AddObj(RoutingID: TUIMIdentifier; var ClassVariable: TClass): TUIMRouting; overload; virtual;
+    Function Remove(RoutingID: TUIMIdentifier): Integer; virtual;
     procedure Delete(Index: Integer); virtual;
     procedure Clear; virtual;
-    property ImplementedObjects[Index: Integer]: TUIMImplementedObject read GetImplementedObject; default;
-    property ImplementedObjectCount: Integer read GetCount;
+    property Routings[Index: Integer]: TUIMRouting read GetRouting; default;
+    property RoutingCount: Integer read GetCount;
   end;
 
 type
@@ -234,47 +271,47 @@ end;
 
 {===============================================================================
 --------------------------------------------------------------------------------
-                              TUIMImplementedObject
+                                   TUIMRouting
 --------------------------------------------------------------------------------
 ===============================================================================}
 {===============================================================================
-    TUIMImplementedObject - class implementation
+    TUIMRouting - class implementation
 ===============================================================================}
 {-------------------------------------------------------------------------------
-    TUIMImplementedObject - protectecd methods
+    TUIMRouting - protectecd methods
 -------------------------------------------------------------------------------}
 
-Function TUIMImplementedObject.GetImplementation(Index: Integer): TUIMImplementation;
+Function TUIMRouting.GetImplementation(Index: Integer): TUIMImplementation;
 begin
 If CheckIndex(Index) then
   Result := fImplementations[Index]
 else
-  raise EUIMIndexOutOfBounds.CreateFmt('TUIMImplementedObject.GetImplementation: Index (%d) out of bounds.',[Index]);
+  raise EUIMIndexOutOfBounds.CreateFmt('TUIMRouting.GetImplementation: Index (%d) out of bounds.',[Index]);
 end;
 
 //------------------------------------------------------------------------------
 
-Function TUIMImplementedObject.GetImplementationFlags(Index: Integer): TUIMImplementationFlags;
+Function TUIMRouting.GetImplementationFlags(Index: Integer): TUIMImplementationFlags;
 begin
 If CheckIndex(Index) then
   Result := fImplementations[Index].ImplementationFlags
 else
-  raise EUIMIndexOutOfBounds.CreateFmt('TUIMImplementedObject.GetImplementationFlags: Index (%d) out of bounds.',[Index]);
+  raise EUIMIndexOutOfBounds.CreateFmt('TUIMRouting.GetImplementationFlags: Index (%d) out of bounds.',[Index]);
 end;
 
 //------------------------------------------------------------------------------
 
-procedure TUIMImplementedObject.SetImplementationFlags(Index: Integer; Value: TUIMImplementationFlags);
+procedure TUIMRouting.SetImplementationFlags(Index: Integer; Value: TUIMImplementationFlags);
 begin
 If CheckIndex(Index) then
   fImplementations[Index].ImplementationFlags := Value
 else
-  raise EUIMIndexOutOfBounds.CreateFmt('TUIMImplementedObject.SetImplementationFlags: Index (%d) out of bounds.',[Index]);
+  raise EUIMIndexOutOfBounds.CreateFmt('TUIMRouting.SetImplementationFlags: Index (%d) out of bounds.',[Index]);
 end;
 
 //------------------------------------------------------------------------------
 
-Function TUIMImplementedObject.GetSelectedIndex: Integer;
+Function TUIMRouting.GetSelectedIndex: Integer;
 begin
 If not CheckRouting then
   fSelectedIndex := -1;
@@ -283,14 +320,14 @@ end;
 
 //------------------------------------------------------------------------------
 
-Function TUIMImplementedObject.GetCapacity: Integer;
+Function TUIMRouting.GetCapacity: Integer;
 begin
 Result := Length(fImplementations);
 end;
 
 //------------------------------------------------------------------------------
 
-procedure TUIMImplementedObject.SetCapacity(Value: Integer);
+procedure TUIMRouting.SetCapacity(Value: Integer);
 begin
 If Value >= 0 then
   begin
@@ -299,30 +336,30 @@ If Value >= 0 then
     If Value < fImplementationCount then
       fImplementationCount := Value;
   end
-else raise EUIMInvalidValue.CreateFmt('TUIMImplementedObject.SetCapacity: Invalid capacity value (%d).',[Value]);
+else raise EUIMInvalidValue.CreateFmt('TUIMRouting.SetCapacity: Invalid capacity value (%d).',[Value]);
 end;
 
 //------------------------------------------------------------------------------
 
-Function TUIMImplementedObject.GetCount: Integer;
+Function TUIMRouting.GetCount: Integer;
 begin
 Result := fImplementationCount;
 end;
 
 //------------------------------------------------------------------------------
 
-class Function TUIMImplementedObject.GrowDelta: Integer;
+class Function TUIMRouting.GrowDelta: Integer;
 begin
 Result := 4;
 end;
 
 //------------------------------------------------------------------------------
 
-procedure TUIMImplementedObject.Initialize(ImplementedObjectID: TUIMIdentifier; ImplementedObjectType: TUIMObjectType; VarAddr: Pointer);
+procedure TUIMRouting.Initialize(RoutingID: TUIMIdentifier; RoutingType: TUIMRoutingType; RoutingVarAddr: Pointer);
 begin
-fImplementedObjectID := ImplementedObjectID;
-fImplementedObjectType := ImplementedObjectType;
-fImplementedObjectVarAddr := VarAddr;
+fRoutingID := RoutingID;
+fRoutingType := RoutingType;
+fRoutingVarAddr := RoutingVarAddr;
 SetLength(fImplementations,0);
 fImplementationCount := 0;
 fSelectedIndex := -1;
@@ -330,81 +367,78 @@ end;
 
 //------------------------------------------------------------------------------
 
-procedure TUIMImplementedObject.Finalize;
+procedure TUIMRouting.Finalize;
 begin
 // nothing to do atm. (do NOT deselect implementations)
 end;
 
 //------------------------------------------------------------------------------
 
-Function TUIMImplementedObject.Add(ImplementationID: TUIMIdentifier; ImplementorType: TUIMObjectType; ImplementorPtr: Pointer; ImplementationFlags: TUIMImplementationFlags): Integer;
+Function TUIMRouting.Add(ImplementationID: TUIMIdentifier; ImplementorType: TUIMRoutingType; ImplementorPtr: Pointer; ImplementationFlags: TUIMImplementationFlags): Integer;
 begin
-If fImplementedObjectType = ImplementorType then
+If fRoutingType = ImplementorType then
   begin
     If not Find(ImplementationID,Result) then
       begin
         Grow;
         Result := fImplementationCount;
         fImplementations[Result].ImplementationID := ImplementationID;
-        fImplementations[Result].ImplementationFlags := ImplementationFlags;
+        fImplementations[Result].ImplementationFlags := ImplementationFlags - [ifSelect];
         fImplementations[Result].ImplementorType := ImplementorType;
         case ImplementorType of
-          otFunction: fImplementations[Result].FunctionImplementor := Pointer(ImplementorPtr^);
-          otMethod:   fImplementations[Result].MethodImplementor := TMethod(ImplementorPtr^);
-          otObject:   fImplementations[Result].ClassImplementor := TClass(ImplementorPtr^);
-          otClass:    fImplementations[Result].ClassImplementor := TClass(ImplementorPtr^);
+          rtFunction: fImplementations[Result].FunctionImplementor := Pointer(ImplementorPtr^);
+          rtMethod:   fImplementations[Result].MethodImplementor := TMethod(ImplementorPtr^);
+          rtObject:   fImplementations[Result].ObjectImplementor := TObject(ImplementorPtr^);
+          rtClass:    fImplementations[Result].ClassImplementor := TClass(ImplementorPtr^);
         else
-          raise EUIMInvalidValue.CreateFmt('TUIMImplementedObject.Add: Invalid implementor type (%d).',[Ord(ImplementorType)]);
+          raise EUIMInvalidValue.CreateFmt('TUIMRouting.Add: Invalid implementor type (%d).',[Ord(ImplementorType)]);
         end;
         Inc(fImplementationCount);
         If ifSelect in ImplementationFlags then
-          begin
-            SelectIndex(Result);
-            Exclude(fImplementations[Result].ImplementationFlags,ifSelect);
-          end;
+          SelectIndex(Result);
       end
-    else raise EUIMDuplicateItem.CreateFmt('TUIMImplementedObject.Add: Implementation with selected id (%d) already exists.',[ImplementationID]);
+    else raise EUIMDuplicateItem.CreateFmt('TUIMRouting.Add: Implementation with selected id (%d) already exists.',[ImplementationID]);
   end
-else raise EUIMInvalidValue.CreateFmt('TUIMImplementedObject.Add: Wrong implementor type (%d), required %d.',[Ord(ImplementorType),Ord(fImplementedObjectType)]);
+else raise EUIMInvalidValue.CreateFmt('TUIMRouting.Add: Wrong implementor type (%d, required %d).',[Ord(ImplementorType),Ord(fRoutingType)]);
 end;
 
 {-------------------------------------------------------------------------------
-    TUIMImplementedObject - public methods
+    TUIMRouting - public methods
 -------------------------------------------------------------------------------}
 
-constructor TUIMImplementedObject.Create(ImplementedObjectID: TUIMIdentifier; var FunctionVariable: Pointer);
+constructor TUIMRouting.Create(RoutingID: TUIMIdentifier; var FunctionVariable: Pointer);
 begin
 inherited Create;
-Initialize(ImplementedObjectID,otFunction,@FunctionVariable);
+Initialize(RoutingID,rtFunction,@FunctionVariable);
 end;
 
 // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
-constructor TUIMImplementedObject.Create(ImplementedObjectID: TUIMIdentifier; var MethodVariable: TMethod);
+constructor TUIMRouting.Create(RoutingID: TUIMIdentifier; var MethodVariable: TMethod);
 begin
 inherited Create;
-Initialize(ImplementedObjectID,otMethod,@MethodVariable);
+Initialize(RoutingID,rtMethod,@MethodVariable);
 end;
 
 // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
-constructor TUIMImplementedObject.Create(ImplementedObjectID: TUIMIdentifier; var ObjectVariable: TObject);
+constructor TUIMRouting.Create(RoutingID: TUIMIdentifier; var ObjectVariable: TObject);
 begin
 inherited Create;
-Initialize(ImplementedObjectID,otObject,@ObjectVariable);
+Initialize(RoutingID,rtObject,@ObjectVariable);
 end;
 
 // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
-constructor TUIMImplementedObject.Create(ImplementedObjectID: TUIMIdentifier; var ClassVariable: TClass);
+constructor TUIMRouting.Create(RoutingID: TUIMIdentifier; var ClassVariable: TClass);
 begin
 inherited Create;
-Initialize(ImplementedObjectID,otClass,@ClassVariable);
+Initialize(RoutingID,rtClass,@ClassVariable);
 end;
 
 //------------------------------------------------------------------------------
 
-destructor TUIMImplementedObject.Destroy;
+destructor TUIMRouting.Destroy;
 begin
 Finalize;
 inherited;
@@ -412,21 +446,21 @@ end;
 
 //------------------------------------------------------------------------------
 
-Function TUIMImplementedObject.LowIndex: Integer;
+Function TUIMRouting.LowIndex: Integer;
 begin
 Result := Low(fImplementations);
 end;
 
 //------------------------------------------------------------------------------
 
-Function TUIMImplementedObject.HighIndex: Integer;
+Function TUIMRouting.HighIndex: Integer;
 begin
 Result := Pred(fImplementationCount);
 end;
 
 //------------------------------------------------------------------------------
 
-Function TUIMImplementedObject.IndexOf(ImplementationID: TUIMIdentifier): Integer;
+Function TUIMRouting.IndexOf(ImplementationID: TUIMIdentifier): Integer;
 var
   i:  Integer;
 begin
@@ -441,7 +475,7 @@ end;
 
 //------------------------------------------------------------------------------
 
-Function TUIMImplementedObject.Find(ImplementationID: TUIMIdentifier; out Index: Integer): Boolean;
+Function TUIMRouting.Find(ImplementationID: TUIMIdentifier; out Index: Integer): Boolean;
 begin
 Index := IndexOf(ImplementationID);
 Result := CheckIndex(Index);
@@ -449,46 +483,46 @@ end;
 
 //------------------------------------------------------------------------------
 
-Function TUIMImplementedObject.Add(ImplementationID: TUIMIdentifier; FunctionImplementor: Pointer; ImplementationFlags: TUIMImplementationFlags = []): Integer;
+Function TUIMRouting.Add(ImplementationID: TUIMIdentifier; FunctionImplementor: Pointer; ImplementationFlags: TUIMImplementationFlags = []): Integer;
 begin
-Result := Add(ImplementationID,otFunction,@FunctionImplementor,ImplementationFlags);
+Result := Add(ImplementationID,rtFunction,@FunctionImplementor,ImplementationFlags);
 end;
 
 // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
-Function TUIMImplementedObject.Add(ImplementationID: TUIMIdentifier; MethodImplementor: TMethod; ImplementationFlags: TUIMImplementationFlags = []): Integer;
+Function TUIMRouting.Add(ImplementationID: TUIMIdentifier; MethodImplementor: TMethod; ImplementationFlags: TUIMImplementationFlags = []): Integer;
 begin
-Result := Add(ImplementationID,otMethod,@MethodImplementor,ImplementationFlags);
+Result := Add(ImplementationID,rtMethod,@MethodImplementor,ImplementationFlags);
 end;
 
 // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
-Function TUIMImplementedObject.Add(ImplementationID: TUIMIdentifier; MethodImplementorCode,MethodImplementorData: Pointer; ImplementationFlags: TUIMImplementationFlags = []): Integer;
+Function TUIMRouting.Add(ImplementationID: TUIMIdentifier; MethodImplementorCode,MethodImplementorData: Pointer; ImplementationFlags: TUIMImplementationFlags = []): Integer;
 var
   MethodTemp: TMethod;
 begin
 MethodTemp.Code := MethodImplementorCode;
 MethodTemp.Data := MethodImplementorData;
-Result := Add(ImplementationID,otMethod,@MethodTemp,ImplementationFlags);
+Result := Add(ImplementationID,rtMethod,@MethodTemp,ImplementationFlags);
 end;
 
 // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
-Function TUIMImplementedObject.Add(ImplementationID: TUIMIdentifier; ObjectImplementor: TObject; ImplementationFlags: TUIMImplementationFlags = []): Integer;
+Function TUIMRouting.Add(ImplementationID: TUIMIdentifier; ObjectImplementor: TObject; ImplementationFlags: TUIMImplementationFlags = []): Integer;
 begin
-Result := Add(ImplementationID,otObject,@ObjectImplementor,ImplementationFlags);
+Result := Add(ImplementationID,rtObject,@ObjectImplementor,ImplementationFlags);
 end;
 
 // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
-Function TUIMImplementedObject.Add(ImplementationID: TUIMIdentifier; ClassImplementor: TClass; ImplementationFlags: TUIMImplementationFlags = []): Integer;
+Function TUIMRouting.Add(ImplementationID: TUIMIdentifier; ClassImplementor: TClass; ImplementationFlags: TUIMImplementationFlags = []): Integer;
 begin
-Result := Add(ImplementationID,otClass,@ClassImplementor,ImplementationFlags);
+Result := Add(ImplementationID,rtClass,@ClassImplementor,ImplementationFlags);
 end;
 
 //------------------------------------------------------------------------------
 
-Function TUIMImplementedObject.Remove(ImplementationID: TUIMIdentifier): Integer;
+Function TUIMRouting.Remove(ImplementationID: TUIMIdentifier): Integer;
 begin
 If Find(ImplementationID,Result) then
   Delete(Result)
@@ -498,7 +532,7 @@ end;
 
 //------------------------------------------------------------------------------
 
-procedure TUIMImplementedObject.Delete(Index: Integer);
+procedure TUIMRouting.Delete(Index: Integer);
 var
   i:  Integer;
 begin
@@ -514,12 +548,12 @@ If CheckIndex(Index) then
       end;
     Dec(fImplementationCount);
   end
-else raise EUIMIndexOutOfBounds.CreateFmt('TUIMImplementedObject.Delete: Index (%d) out of bounds.',[Index]);
+else raise EUIMIndexOutOfBounds.CreateFmt('TUIMRouting.Delete: Index (%d) out of bounds.',[Index]);
 end;
 
 //------------------------------------------------------------------------------
 
-procedure TUIMImplementedObject.Clear;
+procedure TUIMRouting.Clear;
 begin
 SetCapacity(0);
 fSelectedIndex := -1;
@@ -527,19 +561,19 @@ end;
 
 //------------------------------------------------------------------------------
 
-Function TUIMImplementedObject.FlagsGet(ImplementationID: TUIMIdentifier): TUIMImplementationFlags;
+Function TUIMRouting.FlagsGet(ImplementationID: TUIMIdentifier): TUIMImplementationFlags;
 var
   Index:  Integer;
 begin
 If Find(ImplementationID,Index) then
   Result := fImplementations[Index].ImplementationFlags
 else
-  raise EUIMInvalidIdentifier.CreateFmt('TUIMImplementedObject.FlagsGet: Implementation with selected ID (%d) not found.',[ImplementationID]);
+  raise EUIMInvalidIdentifier.CreateFmt('TUIMRouting.FlagsGet: Implementation with selected ID (%d) not found.',[ImplementationID]);
 end;
 
 //------------------------------------------------------------------------------
 
-Function TUIMImplementedObject.FlagsSet(ImplementationID: TUIMIdentifier; ImplementationFlags: TUIMImplementationFlags): TUIMImplementationFlags;
+Function TUIMRouting.FlagsSet(ImplementationID: TUIMIdentifier; ImplementationFlags: TUIMImplementationFlags): TUIMImplementationFlags;
 var
   Index:  Integer;
 begin
@@ -548,12 +582,12 @@ If Find(ImplementationID,Index) then
     Result := fImplementations[Index].ImplementationFlags;
     fImplementations[Index].ImplementationFlags := ImplementationFlags;
   end
-else raise EUIMInvalidIdentifier.CreateFmt('TUIMImplementedObject.FlagsSet: Implementation with selected ID (%d) not found.',[ImplementationID]);
+else raise EUIMInvalidIdentifier.CreateFmt('TUIMRouting.FlagsSet: Implementation with selected ID (%d) not found.',[ImplementationID]);
 end;
 
 //------------------------------------------------------------------------------
 
-Function TUIMImplementedObject.FlagAdd(ImplementationID: TUIMIdentifier; ImplementationFlag: TUIMImplementationFlag): Boolean;
+Function TUIMRouting.FlagAdd(ImplementationID: TUIMIdentifier; ImplementationFlag: TUIMImplementationFlag): Boolean;
 var
   Index:  Integer;
 begin
@@ -562,12 +596,12 @@ If Find(ImplementationID,Index) then
     Result := ImplementationFlag in fImplementations[Index].ImplementationFlags;
     Include(fImplementations[Index].ImplementationFlags,ImplementationFlag);
   end
-else raise EUIMInvalidIdentifier.CreateFmt('TUIMImplementedObject.FlagAdd: Implementation with selected ID (%d) not found.',[ImplementationID]);
+else raise EUIMInvalidIdentifier.CreateFmt('TUIMRouting.FlagAdd: Implementation with selected ID (%d) not found.',[ImplementationID]);
 end;
 
 //------------------------------------------------------------------------------
 
-Function TUIMImplementedObject.FlagRemove(ImplementationID: TUIMIdentifier; ImplementationFlag: TUIMImplementationFlag): Boolean;
+Function TUIMRouting.FlagRemove(ImplementationID: TUIMIdentifier; ImplementationFlag: TUIMImplementationFlag): Boolean;
 var
   Index:  Integer;
 begin
@@ -576,12 +610,12 @@ If Find(ImplementationID,Index) then
     Result := ImplementationFlag in fImplementations[Index].ImplementationFlags;
     Exclude(fImplementations[Index].ImplementationFlags,ImplementationFlag);
   end
-else raise EUIMInvalidIdentifier.CreateFmt('TUIMImplementedObject.FlagRemove: Implementation with selected ID (%d) not found.',[ImplementationID]);
+else raise EUIMInvalidIdentifier.CreateFmt('TUIMRouting.FlagRemove: Implementation with selected ID (%d) not found.',[ImplementationID]);
 end;
 
 //------------------------------------------------------------------------------
 
-Function TUIMImplementedObject.Selected(out SelectedImplementationID: TUIMIdentifier): Boolean;
+Function TUIMRouting.Selected(out SelectedImplementationID: TUIMIdentifier): Boolean;
 begin
 If not CheckRouting then
   fSelectedIndex := -1;
@@ -595,7 +629,7 @@ end;
 
 // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
-Function TUIMImplementedObject.Selected: TUIMIdentifier;
+Function TUIMRouting.Selected: TUIMIdentifier;
 begin
 If not Selected(Result) then
   Result := 0;
@@ -603,7 +637,7 @@ end;
 
 //------------------------------------------------------------------------------
 
-Function TUIMImplementedObject.IsSelected(ImplementationID: TUIMIdentifier): Boolean;
+Function TUIMRouting.IsSelected(ImplementationID: TUIMIdentifier): Boolean;
 begin
 If not CheckRouting then
   fSelectedIndex := -1;
@@ -615,67 +649,74 @@ end;
 
 //------------------------------------------------------------------------------
 
-Function TUIMImplementedObject.SelectIndex(Index: Integer): TUIMIdentifier;
+Function TUIMRouting.SelectIndex(Index: Integer): TUIMIdentifier;
 begin
 If CheckIndex(Index) then
   begin
     fSelectedIndex := Index;
-    case fImplementedObjectType of
-      otFunction: Pointer(fImplementedObjectVarAddr^) := fImplementations[fSelectedIndex].FunctionImplementor;
-      otMethod:   TMethod(fImplementedObjectVarAddr^) := fImplementations[fSelectedIndex].MethodImplementor;
-      otObject:   TObject(fImplementedObjectVarAddr^) := fImplementations[fSelectedIndex].ObjectImplementor;
-      otClass:    TClass(fImplementedObjectVarAddr^) := fImplementations[fSelectedIndex].ClassImplementor;
+    case fRoutingType of
+      rtFunction: Pointer(fRoutingVarAddr^) := fImplementations[fSelectedIndex].FunctionImplementor;
+      rtMethod:   TMethod(fRoutingVarAddr^) := fImplementations[fSelectedIndex].MethodImplementor;
+      rtObject:   TObject(fRoutingVarAddr^) := fImplementations[fSelectedIndex].ObjectImplementor;
+      rtClass:    TClass(fRoutingVarAddr^) := fImplementations[fSelectedIndex].ClassImplementor;
     else
-      raise EUIMInvalidValue.CreateFmt('TUIMImplementedObject.SelectIndex: Invalid implemented object type (%d).',[Ord(fImplementedObjectType)])
+      raise EUIMInvalidValue.CreateFmt('TUIMRouting.SelectIndex: Invalid routing type (%d).',[Ord(fRoutingType)])
     end;
     Result := fImplementations[Index].ImplementationID;
   end
-else raise EUIMIndexOutOfBounds.CreateFmt('TUIMImplementedObject.SelectIndex: Index (%d) out of bounds.',[Index]);
+else raise EUIMIndexOutOfBounds.CreateFmt('TUIMRouting.SelectIndex: Index (%d) out of bounds.',[Index]);
 end;
 
 //------------------------------------------------------------------------------
 
-procedure TUIMImplementedObject.Select(ImplementationID: TUIMIdentifier);
+procedure TUIMRouting.Select(ImplementationID: TUIMIdentifier);
 var
   Index:  Integer;
 begin
 If Find(ImplementationID,Index) then
   SelectIndex(Index)
 else
-  raise EUIMInvalidIdentifier.CreateFmt('TUIMImplementedObject.Select: Implementation with selected ID (%d) not found.',[ImplementationID]);
+  raise EUIMInvalidIdentifier.CreateFmt('TUIMRouting.Select: Implementation with selected ID (%d) not found.',[ImplementationID]);
 end;
 
 //------------------------------------------------------------------------------
 
-procedure TUIMImplementedObject.Deselect;
+procedure TUIMRouting.InvalidateSelection;
 begin
 fSelectedIndex := -1;
-case fImplementedObjectType of
-  otFunction: Pointer(fImplementedObjectVarAddr^) := nil;
-  otMethod:   begin
-                TMethod(fImplementedObjectVarAddr^).Code := nil;
-                TMethod(fImplementedObjectVarAddr^).Data := nil;
+end;
+
+//------------------------------------------------------------------------------
+
+procedure TUIMRouting.Deselect;
+begin
+InvalidateSelection;
+case fRoutingType of
+  rtFunction: Pointer(fRoutingVarAddr^) := nil;
+  rtMethod:   begin
+                TMethod(fRoutingVarAddr^).Code := nil;
+                TMethod(fRoutingVarAddr^).Data := nil;
               end;
-  otObject:   TObject(fImplementedObjectVarAddr^) := TObject(nil);
-  otClass:    TClass(fImplementedObjectVarAddr^) := TClass(nil);
+  rtObject:   TObject(fRoutingVarAddr^) := TObject(nil);
+  rtClass:    TClass(fRoutingVarAddr^) := TClass(nil);
 else
-  raise EUIMInvalidValue.CreateFmt('TUIMImplementedObject.Deselect: Invalid implemented object type (%d).',[Ord(fImplementedObjectType)])
+  raise EUIMInvalidValue.CreateFmt('TUIMRouting.Deselect: Invalid routing type (%d).',[Ord(fRoutingType)])
 end;
 end;
 
 //------------------------------------------------------------------------------
 
-Function TUIMImplementedObject.CheckRouting: Boolean;
+Function TUIMRouting.CheckRouting: Boolean;
 begin
 If CheckIndex(fSelectedIndex) then
-  case fImplementedObjectType of
-    otFunction: Result := Pointer(fImplementedObjectVarAddr^) = fImplementations[fSelectedIndex].FunctionImplementor;
-    otMethod:   Result := (TMethod(fImplementedObjectVarAddr^).Code = fImplementations[fSelectedIndex].MethodImplementor.Code) and
-                          (TMethod(fImplementedObjectVarAddr^).Data = fImplementations[fSelectedIndex].MethodImplementor.Data);
-    otObject:   Result := TObject(fImplementedObjectVarAddr^) = fImplementations[fSelectedIndex].ObjectImplementor;
-    otClass:    Result := TClass(fImplementedObjectVarAddr^) = fImplementations[fSelectedIndex].ClassImplementor;
+  case fRoutingType of
+    rtFunction: Result := Pointer(fRoutingVarAddr^) = fImplementations[fSelectedIndex].FunctionImplementor;
+    rtMethod:   Result := (TMethod(fRoutingVarAddr^).Code = fImplementations[fSelectedIndex].MethodImplementor.Code) and
+                          (TMethod(fRoutingVarAddr^).Data = fImplementations[fSelectedIndex].MethodImplementor.Data);
+    rtObject:   Result := TObject(fRoutingVarAddr^) = fImplementations[fSelectedIndex].ObjectImplementor;
+    rtClass:    Result := TClass(fRoutingVarAddr^) = fImplementations[fSelectedIndex].ClassImplementor;
   else
-    raise EUIMInvalidValue.CreateFmt('TUIMImplementedObject.CheckRouting: Invalid implemented object type (%d).',[Ord(fImplementedObjectType)])
+    raise EUIMInvalidValue.CreateFmt('TUIMRouting.CheckRouting: Invalid routing type (%d).',[Ord(fRoutingType)])
   end
 else Result := True;
 end;
@@ -693,19 +734,19 @@ end;
     TImplementationManager - protected methods
 -------------------------------------------------------------------------------}
 
-Function TImplementationManager.GetImplementedObject(Index: Integer): TUIMImplementedObject;
+Function TImplementationManager.GetRouting(Index: Integer): TUIMRouting;
 begin
 If CheckIndex(Index) then
-  Result := fImplementedObjects[Index]
+  Result := fRoutings[Index]
 else
-  raise EUIMIndexOutOfBounds.CreateFmt('TImplementationManager.GetImplementedObject: Index (%d) out of bounds.',[Index]);
+  raise EUIMIndexOutOfBounds.CreateFmt('TImplementationManager.GetRouting: Index (%d) out of bounds.',[Index]);
 end;
 
 //------------------------------------------------------------------------------
 
 Function TImplementationManager.GetCapacity: Integer;
 begin
-Result := Length(fImplementedObjects);
+Result := Length(fRoutings);
 end;
 
 //------------------------------------------------------------------------------
@@ -716,13 +757,13 @@ var
 begin
 If Value >= 0 then
   begin
-    If Value < fImplementedObjectCount then
+    If Value < fRoutingCount then
       begin
         For i := Value to HighIndex do
-          FreeAndNil(fImplementedObjects[i]);
-        fImplementedObjectCount := Value;
+          FreeAndNil(fRoutings[i]);
+        fRoutingCount := Value;
       end;
-    SetLength(fImplementedObjects,Value);
+    SetLength(fRoutings,Value);
   end
 else raise EUIMInvalidValue.CreateFmt('TImplementationManager.SetCapacity: Invalid capacity value (%d).',[Value]);
 end;
@@ -731,7 +772,7 @@ end;
 
 Function TImplementationManager.GetCount: Integer;
 begin
-Result := fImplementedObjectCount;
+Result := fRoutingCount;
 end;
 
 //------------------------------------------------------------------------------
@@ -745,8 +786,8 @@ end;
 
 procedure TImplementationManager.Initialize;
 begin
-SetLength(fImplementedObjects,0);
-fImplementedObjectCount := 0;
+SetLength(fRoutings,0);
+fRoutingCount := 0;
 end;
 
 //------------------------------------------------------------------------------
@@ -758,23 +799,23 @@ end;
 
 //------------------------------------------------------------------------------
 
-Function TImplementationManager.Add(ImplementedObjectID: TUIMIdentifier; ObjectType: TUIMObjectType; VarAddr: Pointer): Integer;
+Function TImplementationManager.Add(RoutingID: TUIMIdentifier; RoutingType: TUIMRoutingType; RoutingVarAddr: Pointer): Integer;
 begin
-If not Find(ImplementedObjectID,Result) then
+If not Find(RoutingID,Result) then
   begin
     Grow;
-    Result := fImplementedObjectCount;
-    case ObjectType of
-      otFunction: fImplementedObjects[Result] := TUIMImplementedObject.Create(ImplementedObjectID,Pointer(VarAddr^));
-      otMethod:   fImplementedObjects[Result] := TUIMImplementedObject.Create(ImplementedObjectID,TMethod(VarAddr^));
-      otObject:   fImplementedObjects[Result] := TUIMImplementedObject.Create(ImplementedObjectID,TObject(VarAddr^));
-      otClass:    fImplementedObjects[Result] := TUIMImplementedObject.Create(ImplementedObjectID,TClass(VarAddr^));
+    Result := fRoutingCount;
+    case RoutingType of
+      rtFunction: fRoutings[Result] := TUIMRouting.Create(RoutingID,Pointer(RoutingVarAddr^));
+      rtMethod:   fRoutings[Result] := TUIMRouting.Create(RoutingID,TMethod(RoutingVarAddr^));
+      rtObject:   fRoutings[Result] := TUIMRouting.Create(RoutingID,TObject(RoutingVarAddr^));
+      rtClass:    fRoutings[Result] := TUIMRouting.Create(RoutingID,TClass(RoutingVarAddr^));
     else
-      raise EUIMInvalidValue.CreateFmt('TImplementationManager.Add: Invalid implemented object type (%d).',[Ord(ObjectType)])
+      raise EUIMInvalidValue.CreateFmt('TImplementationManager.Add: Invalid routing type (%d).',[Ord(RoutingType)])
     end;
-    Inc(fImplementedObjectCount);
+    Inc(fRoutingCount);
   end
-else raise EUIMDuplicateItem.CreateFmt('TImplementationManager.Add: Implemented object with selected id (%d) already exists.',[ImplementedObjectID]);
+else raise EUIMDuplicateItem.CreateFmt('TImplementationManager.Add: Routing with selected ID (%d) already exists.',[RoutingID]);
 end;
 
 {-------------------------------------------------------------------------------
@@ -799,25 +840,25 @@ end;
 
 Function TImplementationManager.LowIndex: Integer;
 begin
-Result := Low(fImplementedObjects);
+Result := Low(fRoutings);
 end;
 
 //------------------------------------------------------------------------------
 
 Function TImplementationManager.HighIndex: Integer;
 begin
-Result := Pred(fImplementedObjectCount);
+Result := Pred(fRoutingCount);
 end;
 
 //------------------------------------------------------------------------------
 
-Function TImplementationManager.IndexOf(ImplementedObjectID: TUIMIdentifier): Integer;
+Function TImplementationManager.IndexOf(RoutingID: TUIMIdentifier): Integer;
 var
   i:  Integer;
 begin
 Result := -1;
 For i := LowIndex to HighIndex do
-  If fImplementedObjects[i].ImplementedObjectID = ImplementedObjectID then
+  If fRoutings[i].RoutingID = RoutingID then
     begin
       Result := i;
       Break{For i};
@@ -826,97 +867,97 @@ end;
 
 //------------------------------------------------------------------------------
 
-Function TImplementationManager.Find(ImplementedObjectID: TUIMIdentifier; out Index: Integer): Boolean;
+Function TImplementationManager.Find(RoutingID: TUIMIdentifier; out Index: Integer): Boolean;
 begin
-Index := IndexOf(ImplementedObjectID);
+Index := IndexOf(RoutingID);
 Result := CheckIndex(Index);
 end;
 
 //------------------------------------------------------------------------------
 
-Function TImplementationManager.FindObj(ImplementedObjectID: TUIMIdentifier): TUIMImplementedObject;
+Function TImplementationManager.FindObj(RoutingID: TUIMIdentifier): TUIMRouting;
 var
   Index:  Integer;
 begin
-If Find(ImplementedObjectID,Index) then
-  Result := fImplementedObjects[Index]
+If Find(RoutingID,Index) then
+  Result := fRoutings[Index]
 else
-  raise EUIMInvalidIdentifier.CreateFmt('TImplementationManager.FindObj: Implementated object with selected ID (%d) not found.',[ImplementedObjectID]);
+  raise EUIMInvalidIdentifier.CreateFmt('TImplementationManager.FindObj: Routing with selected ID (%d) not found.',[RoutingID]);
 end;
 
 //------------------------------------------------------------------------------
 
-Function TImplementationManager.Add(ImplementedObjectID: TUIMIdentifier; var FunctionVariable: Pointer): Integer;
+Function TImplementationManager.Add(RoutingID: TUIMIdentifier; var FunctionVariable: Pointer): Integer;
 begin
-Result := Add(ImplementedObjectID,otFunction,@FunctionVariable);
+Result := Add(RoutingID,rtFunction,@FunctionVariable);
 end;
 
 // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
-Function TImplementationManager.Add(ImplementedObjectID: TUIMIdentifier; var MethodVariable: TMethod): Integer;
+Function TImplementationManager.Add(RoutingID: TUIMIdentifier; var MethodVariable: TMethod): Integer;
 begin
-Result := Add(ImplementedObjectID,otMethod,@MethodVariable);
+Result := Add(RoutingID,rtMethod,@MethodVariable);
 end;
 
 // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
-Function TImplementationManager.Add(ImplementedObjectID: TUIMIdentifier; var ObjectVariable: TObject): Integer;
+Function TImplementationManager.Add(RoutingID: TUIMIdentifier; var ObjectVariable: TObject): Integer;
 begin
-Result := Add(ImplementedObjectID,otObject,@ObjectVariable);
+Result := Add(RoutingID,rtObject,@ObjectVariable);
 end;
 
 // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
-Function TImplementationManager.Add(ImplementedObjectID: TUIMIdentifier; var ClassVariable: TClass): Integer;
+Function TImplementationManager.Add(RoutingID: TUIMIdentifier; var ClassVariable: TClass): Integer;
 begin
-Result := Add(ImplementedObjectID,otClass,@ClassVariable);
+Result := Add(RoutingID,rtClass,@ClassVariable);
 end;
 
 //------------------------------------------------------------------------------
 
-Function TImplementationManager.AddObj(ImplementedObjectID: TUIMIdentifier; var FunctionVariable: Pointer): TUIMImplementedObject;
+Function TImplementationManager.AddObj(RoutingID: TUIMIdentifier; var FunctionVariable: Pointer): TUIMRouting;
 var
   Index:  Integer;
 begin
-Index := Add(ImplementedObjectID,FunctionVariable);
-Result := fImplementedObjects[Index];
+Index := Add(RoutingID,FunctionVariable);
+Result := fRoutings[Index];
 end;
  
 // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
-Function TImplementationManager.AddObj(ImplementedObjectID: TUIMIdentifier; var MethodVariable: TMethod): TUIMImplementedObject;
+Function TImplementationManager.AddObj(RoutingID: TUIMIdentifier; var MethodVariable: TMethod): TUIMRouting;
 var
   Index:  Integer;
 begin
-Index := Add(ImplementedObjectID,MethodVariable);
-Result := ImplementedObjects[Index];
+Index := Add(RoutingID,MethodVariable);
+Result := Routings[Index];
 end;
 
 // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
-Function TImplementationManager.AddObj(ImplementedObjectID: TUIMIdentifier; var ObjectVariable: TObject): TUIMImplementedObject;
+Function TImplementationManager.AddObj(RoutingID: TUIMIdentifier; var ObjectVariable: TObject): TUIMRouting;
 var
   Index:  Integer;
 begin
-Index := Add(ImplementedObjectID,ObjectVariable);
-Result := ImplementedObjects[Index];
+Index := Add(RoutingID,ObjectVariable);
+Result := Routings[Index];
 end;
 
 // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
-Function TImplementationManager.AddObj(ImplementedObjectID: TUIMIdentifier; var ClassVariable: TClass): TUIMImplementedObject;
+Function TImplementationManager.AddObj(RoutingID: TUIMIdentifier; var ClassVariable: TClass): TUIMRouting;
 var
   Index:  Integer;
 begin
-Index := Add(ImplementedObjectID,ClassVariable);
-Result := ImplementedObjects[Index];
+Index := Add(RoutingID,ClassVariable);
+Result := Routings[Index];
 end;
 
 //------------------------------------------------------------------------------
 
-Function TImplementationManager.Remove(ImplementedObjectID: TUIMIdentifier): Integer;
+Function TImplementationManager.Remove(RoutingID: TUIMIdentifier): Integer;
 begin
-If Find(ImplementedObjectID,Result) then
+If Find(RoutingID,Result) then
   Delete(Result)
 else
   Result := -1;
@@ -930,10 +971,10 @@ var
 begin
 If CheckIndex(Index) then
   begin
-    FreeAndNil(fImplementedObjects[Index]);
+    FreeAndNil(fRoutings[Index]);
     For i := Index to Pred(HighIndex) do
-      fImplementedObjects[i] := fImplementedObjects[i + 1];
-    Dec(fImplementedObjectCount);
+      fRoutings[i] := fRoutings[i + 1];
+    Dec(fRoutingCount);
   end
 else raise EUIMIndexOutOfBounds.CreateFmt('TImplementationManager.Delete: Index (%d) out of bounds.',[Index]);
 end;
@@ -945,9 +986,9 @@ var
   i:  Integer;
 begin
 For i := LowIndex to HighIndex do
-  FreeAndNil(fImplementedObjects[i]);
-SetLength(fImplementedObjects,0);
-fImplementedObjectCount := 0;
+  FreeAndNil(fRoutings[i]);
+SetLength(fRoutings,0);
+fRoutingCount := 0;
 end;
 
 end.
