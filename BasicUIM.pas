@@ -38,10 +38,10 @@
       github.com/TheLazyTomcat/Lib.BasicUIM
 
   Dependencies:
-   *AuxExceptions - github.com/TheLazyTomcat/Lib.AuxExceptions
+  * AuxExceptions - github.com/TheLazyTomcat/Lib.AuxExceptions
 
-  Library AuxExceptions is required only when rebasing local exception
-  classes (see symbol BasicUIM_UseAuxExceptions for details).
+  Library AuxExceptions is required only when rebasing local exception classes
+  (see symbol BasicUIM_UseAuxExceptions for details).
 
   Indirect dependencies:
     AuxTypes    - github.com/TheLazyTomcat/Lib.AuxTypes
