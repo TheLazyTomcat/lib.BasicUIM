@@ -17,11 +17,11 @@
     absolutely no documentation. But, I am open to suggestions, if anyone will
     be interested.
 
-  Version 1.1.1 (2024-04-14)
+  Version 1.1.2 (2025-09-22)
 
-  Last change 2024-04-14
+  Last change 2025-09-22
 
-  ©2023-2024 František Milt
+  ©2023-2025 František Milt
 
   Contacts:
     František Milt: frantisek.milt@gmail.com
@@ -39,19 +39,36 @@
 
   Dependencies:
   * AuxExceptions - github.com/TheLazyTomcat/Lib.AuxExceptions
+    SimpleCPUID   - github.com/TheLazyTomcat/Lib.SimpleCPUID
 
   Library AuxExceptions is required only when rebasing local exception classes
   (see symbol BasicUIM_UseAuxExceptions for details).
 
+  Library AuxExceptions might also be required as an indirect dependency.
+
   Indirect dependencies:
     AuxTypes    - github.com/TheLazyTomcat/Lib.AuxTypes
-    SimpleCPUID - github.com/TheLazyTomcat/Lib.SimpleCPUID
     StrRect     - github.com/TheLazyTomcat/Lib.StrRect
     UInt64Utils - github.com/TheLazyTomcat/Lib.UInt64Utils
     WinFileInfo - github.com/TheLazyTomcat/Lib.WinFileInfo
 
 ===============================================================================}
 unit BasicUIM;
+{
+  BasicUIM_PurePascal
+
+  If you want to compile this unit without ASM, don't want to or cannot define
+  PurePascal for the entire project and at the same time you don't want to or
+  cannot make changes to this unit, define this symbol for the entire project
+  and this unit will be compiled in PurePascal mode.
+
+    NOTE - this unit cannot be compiled without asm, but this symbol is still
+           provided for the sake of completeness.
+}
+{$IFDEF BasicUIM_PurePascal}
+  {$DEFINE PurePascal}
+{$ENDIF}
+
 {
   BasicUIM_UseAuxExceptions
 
@@ -66,10 +83,26 @@ unit BasicUIM;
 
 //------------------------------------------------------------------------------
 
+{$IF defined(CPUX86_64) or defined(CPUX64)}
+  {$DEFINE x64}
+{$ELSEIF defined(CPU386)}
+  {$DEFINE x86}
+{$ELSE}
+  {$MESSAGE FATAL 'Unsupported CPU architecture.'}
+{$IFEND}
+
 {$IFDEF FPC}
   {$MODE ObjFpc}
+  {$MODESWITCH ClassicProcVars+}
+  {$ASMMODE Intel}
 {$ENDIF}
 {$H+}
+
+//------------------------------------------------------------------------------
+
+{$IF Defined(PurePascal) and not Defined(CompTest)}
+  {$MESSAGE WARN 'This unit cannot be compiled in PurePascal mode.'}
+{$IFEND} 
 
 interface
 
@@ -266,6 +299,9 @@ type
 
 implementation
 
+uses
+  SimpleCPUID;
+
 {===============================================================================
     Auxiliary functions - implementation
 ===============================================================================}
@@ -288,6 +324,40 @@ case RoutingType of
 else
   raise EUIMInvalidValue.CreateFmt('RoutToImplType: Invalid routing type (%d).',[Ord(RoutingType)]);
 end;
+end;
+
+{===============================================================================
+    Memory barrier functions - implementation
+===============================================================================}
+
+procedure MemoryBarrier_NONE;
+begin
+// do nothing
+end;
+
+//------------------------------------------------------------------------------
+
+procedure MemoryBarrier_CPUID;
+var
+  Buffer: array[0..15] of Byte;
+begin
+SimpleCPUID.CPUID(0,@Buffer);
+end;
+
+//------------------------------------------------------------------------------
+
+procedure MemoryBarrier_MFENCE; assembler;
+asm
+    MFENCE
+end;
+
+//==============================================================================
+var
+  VAR_MemoryBarrier: procedure = MemoryBarrier_NONE;
+
+procedure MemoryBarrier;
+begin
+VAR_MemoryBarrier;
 end;
 
 {===============================================================================
@@ -821,6 +891,7 @@ If CheckIndex(Index) then
       end
     else Select(fImplementations[Index].OriginalImplementor);
     Result := fImplementations[Index].ImplementationID;
+    MemoryBarrier;
   end
 else raise EUIMIndexOutOfBounds.CreateFmt('TUIMRouting.SelectIndex: Index (%d) out of bounds.',[Index]);
 end;
@@ -860,6 +931,7 @@ case fRoutingType of
 else
   raise EUIMInvalidValue.CreateFmt('TUIMRouting.Deselect: Invalid routing type (%d).',[Ord(fRoutingType)])
 end;
+MemoryBarrier;
 end;
 
 //------------------------------------------------------------------------------
@@ -1148,5 +1220,35 @@ For i := LowIndex to HighIndex do
 SetLength(fRoutings,0);
 fRoutingCount := 0;
 end;
+
+{===============================================================================
+--------------------------------------------------------------------------------
+                      Unit initialization and finalization                     
+--------------------------------------------------------------------------------
+===============================================================================}
+
+procedure UnitInitialize;
+begin
+If SimpleCPUID.CPUIDSupported then
+  with TSimpleCPUID.Create do
+  try
+    If Info.SupportedExtensions.SSE2 then
+      // MFENCE instruction should be available
+      VAR_MemoryBarrier := MemoryBarrier_MFENCE
+    else
+      // MFENCE not available, use serialization instruction CPUID
+      VAR_MemoryBarrier := MemoryBarrier_CPUID;
+  finally
+    Free;
+  end
+{
+  If the CPU is so old or bare that it does not support CPUID, then it most
+  probably does not need serialization in the first place.
+}
+else VAR_MemoryBarrier := MemoryBarrier_NONE;
+end;
+
+initialization
+  UnitInitialize;
 
 end.
