@@ -210,8 +210,18 @@ type
     destructor Destroy; override;
     Function LowIndex: Integer; override;
     Function HighIndex: Integer; override;
-    Function IndexOf(ImplementationID: TUIMIdentifier): Integer; virtual;
-    Function Find(ImplementationID: TUIMIdentifier; out Index: Integer): Boolean; virtual;
+    Function IndexOf(ImplementationID: TUIMIdentifier): Integer; overload; virtual;
+    Function IndexOf(FunctionImplementor: Pointer): Integer; overload; virtual;
+    Function IndexOf(MethodImplementor: TMethod): Integer; overload; virtual;
+    Function IndexOf(MethodImplementorCode,MethodImplementorData: Pointer): Integer; overload; virtual;
+    Function IndexOf(ObjectImplementor: TObject): Integer; overload; virtual;
+    Function IndexOf(ClassImplementor: TClass): Integer; overload; virtual;
+    Function Find(ImplementationID: TUIMIdentifier; out Index: Integer): Boolean; overload; virtual;
+    Function Find(FunctionImplementor: Pointer; out Index: Integer): Boolean; overload; virtual;
+    Function Find(MethodImplementor: TMethod; out Index: Integer): Boolean; overload; virtual;
+    Function Find(MethodImplementorCode,MethodImplementorData: Pointer; out Index: Integer): Boolean; overload; virtual;
+    Function Find(ObjectImplementor: TObject; out Index: Integer): Boolean; overload; virtual;
+    Function Find(ClassImplementor: TClass; out Index: Integer): Boolean; overload; virtual;
     Function Add(ImplementationID: TUIMIdentifier; FunctionImplementor: Pointer; ImplementationFlags: TUIMImplementationFlags = []): Integer; overload; virtual;
     Function Add(ImplementationID: TUIMIdentifier; MethodImplementor: TMethod; ImplementationFlags: TUIMImplementationFlags = []): Integer; overload; virtual;
     Function Add(ImplementationID: TUIMIdentifier; MethodImplementorCode,MethodImplementorData: Pointer; ImplementationFlags: TUIMImplementationFlags = []): Integer; overload; virtual;
@@ -330,9 +340,13 @@ end;
     Memory barrier functions - implementation
 ===============================================================================}
 
-procedure MemoryBarrier_NONE;
-begin
-// do nothing
+procedure MemoryBarrier_LOCK; assembler;
+asm
+{$IFDEF x64}
+    LOCK ADD  RSP, 0
+{$ELSE}
+    LOCK ADD  ESP, 0
+{$ENDIF}
 end;
 
 //------------------------------------------------------------------------------
@@ -353,7 +367,7 @@ end;
 
 //==============================================================================
 var
-  VAR_MemoryBarrier: procedure = MemoryBarrier_NONE;
+  VAR_MemoryBarrier: procedure = MemoryBarrier_LOCK;
 
 procedure MemoryBarrier;
 begin
@@ -624,11 +638,133 @@ For i := LowIndex to HighIndex do
     end;
 end;
 
+// - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+
+Function TUIMRouting.IndexOf(FunctionImplementor: Pointer): Integer;
+var
+  i:  Integer;
+begin
+Result := -1;
+For i := LowIndex to HighIndex do
+  If (fImplementations[i].ImplementorType = itFunction) and
+     (fImplementations[i].FunctionImplementor = FunctionImplementor) then
+    begin
+      Result := i;
+      Break{For i};
+    end;
+end;
+
+// - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+
+Function TUIMRouting.IndexOf(MethodImplementor: TMethod): Integer;
+var
+  i:  Integer;
+begin
+Result := -1;
+For i := LowIndex to HighIndex do
+  If (fImplementations[i].ImplementorType = itMethod) and
+     (fImplementations[i].MethodImplementor.Code = MethodImplementor.Code) and
+     (fImplementations[i].MethodImplementor.Data = MethodImplementor.Data) then
+    begin
+      Result := i;
+      Break{For i};
+    end;
+end;
+
+// - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+
+Function TUIMRouting.IndexOf(MethodImplementorCode,MethodImplementorData: Pointer): Integer;
+var
+  i:  Integer;
+begin
+Result := -1;
+For i := LowIndex to HighIndex do
+  If (fImplementations[i].ImplementorType = itMethod) and
+     (fImplementations[i].MethodImplementor.Code = MethodImplementorCode) and
+     (fImplementations[i].MethodImplementor.Data = MethodImplementorData) then
+    begin
+      Result := i;
+      Break{For i};
+    end;
+end;
+
+// - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+
+Function TUIMRouting.IndexOf(ObjectImplementor: TObject): Integer;
+var
+  i:  Integer;
+begin
+Result := -1;
+For i := LowIndex to HighIndex do
+  If (fImplementations[i].ImplementorType = itObject) and
+     (fImplementations[i].ObjectImplementor = ObjectImplementor) then
+    begin
+      Result := i;
+      Break{For i};
+    end;
+end;
+
+// - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+
+Function TUIMRouting.IndexOf(ClassImplementor: TClass): Integer;
+var
+  i:  Integer;
+begin
+Result := -1;
+For i := LowIndex to HighIndex do
+  If (fImplementations[i].ImplementorType = itClass) and
+     (fImplementations[i].ClassImplementor = ClassImplementor) then
+    begin
+      Result := i;
+      Break{For i};
+    end;
+end;
+
 //------------------------------------------------------------------------------
 
 Function TUIMRouting.Find(ImplementationID: TUIMIdentifier; out Index: Integer): Boolean;
 begin
 Index := IndexOf(ImplementationID);
+Result := CheckIndex(Index);
+end;
+
+// - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+
+Function TUIMRouting.Find(FunctionImplementor: Pointer; out Index: Integer): Boolean;
+begin
+Index := IndexOf(FunctionImplementor);
+Result := CheckIndex(Index);
+end;
+
+// - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+
+Function TUIMRouting.Find(MethodImplementor: TMethod; out Index: Integer): Boolean;
+begin
+Index := IndexOf(MethodImplementor);
+Result := CheckIndex(Index);
+end;
+
+// - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+
+Function TUIMRouting.Find(MethodImplementorCode,MethodImplementorData: Pointer; out Index: Integer): Boolean;
+begin
+Index := IndexOf(MethodImplementorCode,MethodImplementorData);
+Result := CheckIndex(Index);
+end;
+
+// - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+
+Function TUIMRouting.Find(ObjectImplementor: TObject; out Index: Integer): Boolean;
+begin
+Index := IndexOf(ObjectImplementor);
+Result := CheckIndex(Index);
+end;
+
+// - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+
+Function TUIMRouting.Find(ClassImplementor: TClass; out Index: Integer): Boolean;
+begin
+Index := IndexOf(ClassImplementor);
 Result := CheckIndex(Index);
 end;
 
@@ -1245,7 +1381,7 @@ If SimpleCPUID.CPUIDSupported then
   If the CPU is so old or bare that it does not support CPUID, then it most
   probably does not need serialization in the first place.
 }
-else VAR_MemoryBarrier := MemoryBarrier_NONE;
+else VAR_MemoryBarrier := MemoryBarrier_LOCK;
 end;
 
 initialization
