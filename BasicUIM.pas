@@ -17,9 +17,9 @@
     absolutely no documentation. But, I am open to suggestions, if anyone will
     be interested.
 
-  Version 1.2 (2025-10-03)
+  Version 1.2.1 (2025-12-08)
 
-  Last change 2025-10-03
+  Last change 2025-12-08
 
   ©2023-2025 František Milt
 
@@ -393,37 +393,57 @@ type
 ===============================================================================}
 type
   TUIMImplementationInfo = record
-    Identifier:     TUIMIdentifier;
-    Implementator:  record
+    Identifier:   TUIMIdentifier;
+    Implementor:  record
       case ImplementorType: TUIMImplementationType of
         itFunction: (ImplementorFunction: Pointer);
         itMethod:   (ImplementorMethod:   TMethod);
         itObject:   (ImplementorObject:   TObject);
         itClass:    (ImplementorClass:    TClass);
     end;
-    Supported:      Boolean;
-    Available:      Boolean;
+    Supported:    Boolean;
+    Available:    Boolean;
   end;
+
+//------------------------------------------------------------------------------  
 
 Function ImplInfo(Identifier: TUIMIdentifier; ImplementorFunction: Pointer;
   Supported: Boolean = True; Available: Boolean = True): TUIMImplementationInfo; overload;
 Function ImplInfo(Identifier: TUIMIdentifier; ImplementorMethod: TMethod;
   Supported: Boolean = True; Available: Boolean = True): TUIMImplementationInfo; overload;
-Function ImplInfo(Identifier: TUIMIdentifier; ImplementorMethodCode,ImplementorMEthodData: Pointer;
+Function ImplInfo(Identifier: TUIMIdentifier; ImplementorMethodCode,ImplementorMethodData: Pointer;
   Supported: Boolean = True; Available: Boolean = True): TUIMImplementationInfo; overload;
 Function ImplInfo(Identifier: TUIMIdentifier; ImplementorObject: TObject;
   Supported: Boolean = True; Available: Boolean = True): TUIMImplementationInfo; overload;
 Function ImplInfo(Identifier: TUIMIdentifier; ImplementorClass: TClass;
   Supported: Boolean = True; Available: Boolean = True): TUIMImplementationInfo; overload;
 
-procedure AddRouting(ImplementationManager: TImplementationManager; RoutingID: TUIMIdentifier; var FunctionVariable: Pointer;
-  const Implementations: array of TUIMImplementationInfo; DefaultSelect: Integer = -1); overload;
-procedure AddRouting(ImplementationManager: TImplementationManager; RoutingID: TUIMIdentifier; var MethodVariable: TMethod;
-  const Implementations: array of TUIMImplementationInfo; DefaultSelect: Integer = -1); overload;
-procedure AddRouting(ImplementationManager: TImplementationManager; RoutingID: TUIMIdentifier; var ObjectVariable: TObject;
-  const Implementations: array of TUIMImplementationInfo; DefaultSelect: Integer = -1); overload;
-procedure AddRouting(ImplementationManager: TImplementationManager; RoutingID: TUIMIdentifier; var ClassVariable: TClass;
-  const Implementations: array of TUIMImplementationInfo; DefaultSelect: Integer = -1); overload;
+procedure AddRoutingSelectIdx(ImplementationManager: TImplementationManager; RoutingID: TUIMIdentifier;
+  var FunctionVariable: Pointer; const Implementations: array of TUIMImplementationInfo; DefaultSelectIdx: Integer); overload;
+procedure AddRoutingSelectIdx(ImplementationManager: TImplementationManager; RoutingID: TUIMIdentifier;
+  var MethodVariable: TMethod; const Implementations: array of TUIMImplementationInfo; DefaultSelectIdx: Integer); overload;
+procedure AddRoutingSelectIdx(ImplementationManager: TImplementationManager; RoutingID: TUIMIdentifier;
+  var ObjectVariable: TObject; const Implementations: array of TUIMImplementationInfo; DefaultSelectIdx: Integer); overload;
+procedure AddRoutingSelectIdx(ImplementationManager: TImplementationManager; RoutingID: TUIMIdentifier;
+  var ClassVariable: TClass; const Implementations: array of TUIMImplementationInfo; DefaultSelectIdx: Integer); overload;
+
+procedure AddRoutingSelect(ImplementationManager: TImplementationManager; RoutingID: TUIMIdentifier;
+  var FunctionVariable: Pointer; const Implementations: array of TUIMImplementationInfo; DefaultSelect: TUIMIdentifier); overload;
+procedure AddRoutingSelect(ImplementationManager: TImplementationManager; RoutingID: TUIMIdentifier;
+  var MethodVariable: TMethod; const Implementations: array of TUIMImplementationInfo; DefaultSelect: TUIMIdentifier); overload;
+procedure AddRoutingSelect(ImplementationManager: TImplementationManager; RoutingID: TUIMIdentifier;
+  var ObjectVariable: TObject; const Implementations: array of TUIMImplementationInfo; DefaultSelect: TUIMIdentifier); overload;
+procedure AddRoutingSelect(ImplementationManager: TImplementationManager; RoutingID: TUIMIdentifier;
+  var ClassVariable: TClass; const Implementations: array of TUIMImplementationInfo; DefaultSelect: TUIMIdentifier); overload;
+
+procedure AddRouting(ImplementationManager: TImplementationManager; RoutingID: TUIMIdentifier;
+  var FunctionVariable: Pointer; const Implementations: array of TUIMImplementationInfo); overload;
+procedure AddRouting(ImplementationManager: TImplementationManager; RoutingID: TUIMIdentifier;
+  var MethodVariable: TMethod; const Implementations: array of TUIMImplementationInfo); overload;
+procedure AddRouting(ImplementationManager: TImplementationManager; RoutingID: TUIMIdentifier;
+  var ObjectVariable: TObject; const Implementations: array of TUIMImplementationInfo); overload;
+procedure AddRouting(ImplementationManager: TImplementationManager; RoutingID: TUIMIdentifier;
+  var ClassVariable: TClass; const Implementations: array of TUIMImplementationInfo); overload;
 
 implementation
 
@@ -1966,12 +1986,27 @@ end;
 --------------------------------------------------------------------------------
 ===============================================================================}
 
+Function ImplementationIndexOf(const Implementations: array of TUIMImplementationInfo; ImplementationIdentifier: TUIMIdentifier): Integer;
+var
+  i:  Integer;
+begin
+Result := -1;
+For i := Low(Implementations) to High(Implementations) do
+  If Implementations[i].Identifier = ImplementationIdentifier then
+    begin
+      Result := i;
+      Break{For i};
+    end;
+end;
+
+//==============================================================================
+
 Function ImplInfo(Identifier: TUIMIdentifier; ImplementorFunction: Pointer;
   Supported: Boolean = True; Available: Boolean = True): TUIMImplementationInfo;
 begin
 Result.Identifier := Identifier;
-Result.Implementator.ImplementorType := itFunction;
-Result.Implementator.ImplementorFunction := ImplementorFunction;
+Result.Implementor.ImplementorType := itFunction;
+Result.Implementor.ImplementorFunction := ImplementorFunction;
 Result.Supported := Supported;
 Result.Available := Available;
 end;
@@ -1982,21 +2017,21 @@ Function ImplInfo(Identifier: TUIMIdentifier; ImplementorMethod: TMethod;
   Supported: Boolean = True; Available: Boolean = True): TUIMImplementationInfo;
 begin
 Result.Identifier := Identifier;
-Result.Implementator.ImplementorType := itMethod;
-Result.Implementator.ImplementorMethod := ImplementorMethod;
+Result.Implementor.ImplementorType := itMethod;
+Result.Implementor.ImplementorMethod := ImplementorMethod;
 Result.Supported := Supported;
 Result.Available := Available;
 end;
 
 // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
-Function ImplInfo(Identifier: TUIMIdentifier; ImplementorMethodCode,ImplementorMEthodData: Pointer;
+Function ImplInfo(Identifier: TUIMIdentifier; ImplementorMethodCode,ImplementorMethodData: Pointer;
   Supported: Boolean = True; Available: Boolean = True): TUIMImplementationInfo;
 begin
 Result.Identifier := Identifier;
-Result.Implementator.ImplementorType := itMethod;
-Result.Implementator.ImplementorMethod.Code := ImplementorMethodCode;
-Result.Implementator.ImplementorMethod.Data := ImplementorMethodData;
+Result.Implementor.ImplementorType := itMethod;
+Result.Implementor.ImplementorMethod.Code := ImplementorMethodCode;
+Result.Implementor.ImplementorMethod.Data := ImplementorMethodData;
 Result.Supported := Supported;
 Result.Available := Available;
 end;
@@ -2007,8 +2042,8 @@ Function ImplInfo(Identifier: TUIMIdentifier; ImplementorObject: TObject;
   Supported: Boolean = True; Available: Boolean = True): TUIMImplementationInfo;
 begin
 Result.Identifier := Identifier;
-Result.Implementator.ImplementorType := itObject;
-Result.Implementator.ImplementorObject := ImplementorObject;
+Result.Implementor.ImplementorType := itObject;
+Result.Implementor.ImplementorObject := ImplementorObject;
 Result.Supported := Supported;
 Result.Available := Available;
 end;
@@ -2019,16 +2054,16 @@ Function ImplInfo(Identifier: TUIMIdentifier; ImplementorClass: TClass;
   Supported: Boolean = True; Available: Boolean = True): TUIMImplementationInfo;
 begin
 Result.Identifier := Identifier;
-Result.Implementator.ImplementorType := itClass;
-Result.Implementator.ImplementorClass := ImplementorClass;
+Result.Implementor.ImplementorType := itClass;
+Result.Implementor.ImplementorClass := ImplementorClass;
 Result.Supported := Supported;
 Result.Available := Available;
 end;
 
 //------------------------------------------------------------------------------
 
-procedure AddRouting(ImplementationManager: TImplementationManager; RoutingID: TUIMIdentifier; var FunctionVariable: Pointer;
-  const Implementations: array of TUIMImplementationInfo; DefaultSelect: Integer = -1);
+procedure AddRoutingSelectIdx(ImplementationManager: TImplementationManager; RoutingID: TUIMIdentifier;
+  var FunctionVariable: Pointer; const Implementations: array of TUIMImplementationInfo; DefaultSelectIdx: Integer);
 var
   RoutingObject:              TUIMRouting;
   ExpectedImplementationType: TUIMImplementationType;
@@ -2040,7 +2075,7 @@ RoutingObject := ImplementationManager.RoutingAddObj(RoutingID,FunctionVariable)
 // check types of provided implementations
 ExpectedImplementationType := RoutToImplType(rtFunction);
 For i := Low(Implementations) to High(Implementations) do
-  If Implementations[i].Implementator.ImplementorType <> ExpectedImplementationType then
+  If Implementations[i].Implementor.ImplementorType <> ExpectedImplementationType then
     raise EUIMInvalidValue.CreateFmt('AddRouting: Implementor #%d type mismatch.',[i]);
 // traverse provided implementations and add them for the new routing
 For i := Low(Implementations) to High(Implementations) do
@@ -2053,20 +2088,20 @@ For i := Low(Implementations) to High(Implementations) do
         If Implementations[i].Supported then
           Include(ImplementationFlags,ifSupported);
       end;
-    If i = DefaultSelect then
+    If i = DefaultSelectIdx then
       Include(ImplementationFlags,ifSelect);
     // if the implementor is already present, add the new implementation as an alias
-    If RoutingObject.Find(Implementations[i].Implementator.ImplementorFunction,Index) then
+    If RoutingObject.Find(Implementations[i].Implementor.ImplementorFunction,Index) then
       RoutingObject.AddAlias(RoutingObject[Index].ImplementationID,Implementations[i].Identifier,ImplementationFlags)
     else
-      RoutingObject.Add(Implementations[i].Identifier,Implementations[i].Implementator.ImplementorFunction,ImplementationFlags);
+      RoutingObject.Add(Implementations[i].Identifier,Implementations[i].Implementor.ImplementorFunction,ImplementationFlags);
   end;
 end;
 
 // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-
-procedure AddRouting(ImplementationManager: TImplementationManager; RoutingID: TUIMIdentifier; var MethodVariable: TMethod;
-  const Implementations: array of TUIMImplementationInfo; DefaultSelect: Integer = -1);
+  
+procedure AddRoutingSelectIdx(ImplementationManager: TImplementationManager; RoutingID: TUIMIdentifier;
+  var MethodVariable: TMethod; const Implementations: array of TUIMImplementationInfo; DefaultSelectIdx: Integer);
 var
   RoutingObject:              TUIMRouting;
   ExpectedImplementationType: TUIMImplementationType;
@@ -2076,7 +2111,7 @@ begin
 RoutingObject := ImplementationManager.RoutingAddObj(RoutingID,MethodVariable);
 ExpectedImplementationType := RoutToImplType(rtMethod);
 For i := Low(Implementations) to High(Implementations) do
-  If Implementations[i].Implementator.ImplementorType <> ExpectedImplementationType then
+  If Implementations[i].Implementor.ImplementorType <> ExpectedImplementationType then
     raise EUIMInvalidValue.CreateFmt('AddRouting: Implementor #%d type mismatch.',[i]);
 For i := Low(Implementations) to High(Implementations) do
   begin
@@ -2087,19 +2122,19 @@ For i := Low(Implementations) to High(Implementations) do
         If Implementations[i].Supported then
           Include(ImplementationFlags,ifSupported);
       end;
-    If i = DefaultSelect then
+    If i = DefaultSelectIdx then
       Include(ImplementationFlags,ifSelect);
-    If RoutingObject.Find(Implementations[i].Implementator.ImplementorMethod,Index) then
+    If RoutingObject.Find(Implementations[i].Implementor.ImplementorMethod,Index) then
       RoutingObject.AddAlias(RoutingObject[Index].ImplementationID,Implementations[i].Identifier,ImplementationFlags)
     else
-      RoutingObject.Add(Implementations[i].Identifier,Implementations[i].Implementator.ImplementorMethod,ImplementationFlags);
+      RoutingObject.Add(Implementations[i].Identifier,Implementations[i].Implementor.ImplementorMethod,ImplementationFlags);
   end;
 end;
 
 // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
-procedure AddRouting(ImplementationManager: TImplementationManager; RoutingID: TUIMIdentifier; var ObjectVariable: TObject;
-  const Implementations: array of TUIMImplementationInfo; DefaultSelect: Integer = -1);
+procedure AddRoutingSelectIdx(ImplementationManager: TImplementationManager; RoutingID: TUIMIdentifier;
+  var ObjectVariable: TObject; const Implementations: array of TUIMImplementationInfo; DefaultSelectIdx: Integer);
 var
   RoutingObject:              TUIMRouting;
   ExpectedImplementationType: TUIMImplementationType;
@@ -2109,7 +2144,7 @@ begin
 RoutingObject := ImplementationManager.RoutingAddObj(RoutingID,ObjectVariable);
 ExpectedImplementationType := RoutToImplType(rtObject);
 For i := Low(Implementations) to High(Implementations) do
-  If Implementations[i].Implementator.ImplementorType <> ExpectedImplementationType then
+  If Implementations[i].Implementor.ImplementorType <> ExpectedImplementationType then
     raise EUIMInvalidValue.CreateFmt('AddRouting: Implementor #%d type mismatch.',[i]);
 For i := Low(Implementations) to High(Implementations) do
   begin
@@ -2120,19 +2155,19 @@ For i := Low(Implementations) to High(Implementations) do
         If Implementations[i].Supported then
           Include(ImplementationFlags,ifSupported);
       end;
-    If i = DefaultSelect then
+    If i = DefaultSelectIdx then
       Include(ImplementationFlags,ifSelect);
-    If RoutingObject.Find(Implementations[i].Implementator.ImplementorObject,Index) then
+    If RoutingObject.Find(Implementations[i].Implementor.ImplementorObject,Index) then
       RoutingObject.AddAlias(RoutingObject[Index].ImplementationID,Implementations[i].Identifier,ImplementationFlags)
     else
-      RoutingObject.Add(Implementations[i].Identifier,Implementations[i].Implementator.ImplementorObject,ImplementationFlags);
+      RoutingObject.Add(Implementations[i].Identifier,Implementations[i].Implementor.ImplementorObject,ImplementationFlags);
   end;
 end;
 
 // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
-procedure AddRouting(ImplementationManager: TImplementationManager; RoutingID: TUIMIdentifier; var ClassVariable: TClass;
-  const Implementations: array of TUIMImplementationInfo; DefaultSelect: Integer = -1);
+procedure AddRoutingSelectIdx(ImplementationManager: TImplementationManager; RoutingID: TUIMIdentifier;
+  var ClassVariable: TClass; const Implementations: array of TUIMImplementationInfo; DefaultSelectIdx: Integer);
 var
   RoutingObject:              TUIMRouting;
   ExpectedImplementationType: TUIMImplementationType;
@@ -2142,7 +2177,7 @@ begin
 RoutingObject := ImplementationManager.RoutingAddObj(RoutingID,ClassVariable);
 ExpectedImplementationType := RoutToImplType(rtClass);
 For i := Low(Implementations) to High(Implementations) do
-  If Implementations[i].Implementator.ImplementorType <> ExpectedImplementationType then
+  If Implementations[i].Implementor.ImplementorType <> ExpectedImplementationType then
     raise EUIMInvalidValue.CreateFmt('AddRouting: Implementor #%d type mismatch.',[i]);
 For i := Low(Implementations) to High(Implementations) do
   begin
@@ -2153,13 +2188,81 @@ For i := Low(Implementations) to High(Implementations) do
         If Implementations[i].Supported then
           Include(ImplementationFlags,ifSupported);
       end;
-    If i = DefaultSelect then
+    If i = DefaultSelectIdx then
       Include(ImplementationFlags,ifSelect);
-    If RoutingObject.Find(Implementations[i].Implementator.ImplementorClass,Index) then
+    If RoutingObject.Find(Implementations[i].Implementor.ImplementorClass,Index) then
       RoutingObject.AddAlias(RoutingObject[Index].ImplementationID,Implementations[i].Identifier,ImplementationFlags)
     else
-      RoutingObject.Add(Implementations[i].Identifier,Implementations[i].Implementator.ImplementorClass,ImplementationFlags);
+      RoutingObject.Add(Implementations[i].Identifier,Implementations[i].Implementor.ImplementorClass,ImplementationFlags);
   end;
+end;
+  
+//------------------------------------------------------------------------------
+
+procedure AddRoutingSelect(ImplementationManager: TImplementationManager; RoutingID: TUIMIdentifier;
+  var FunctionVariable: Pointer; const Implementations: array of TUIMImplementationInfo; DefaultSelect: TUIMIdentifier);
+begin
+AddRoutingSelectIdx(ImplementationManager,RoutingID,FunctionVariable,Implementations,
+  ImplementationIndexOf(Implementations,DefaultSelect));
+end;
+
+// - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+
+procedure AddRoutingSelect(ImplementationManager: TImplementationManager; RoutingID: TUIMIdentifier;
+  var MethodVariable: TMethod; const Implementations: array of TUIMImplementationInfo; DefaultSelect: TUIMIdentifier);
+begin
+AddRoutingSelectIdx(ImplementationManager,RoutingID,MethodVariable,Implementations,
+  ImplementationIndexOf(Implementations,DefaultSelect));
+end;
+
+// - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+
+procedure AddRoutingSelect(ImplementationManager: TImplementationManager; RoutingID: TUIMIdentifier;
+  var ObjectVariable: TObject; const Implementations: array of TUIMImplementationInfo; DefaultSelect: TUIMIdentifier);
+begin
+AddRoutingSelectIdx(ImplementationManager,RoutingID,ObjectVariable,Implementations,
+  ImplementationIndexOf(Implementations,DefaultSelect));
+end;
+
+// - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+
+procedure AddRoutingSelect(ImplementationManager: TImplementationManager; RoutingID: TUIMIdentifier;
+  var ClassVariable: TClass; const Implementations: array of TUIMImplementationInfo; DefaultSelect: TUIMIdentifier);
+begin
+AddRoutingSelectIdx(ImplementationManager,RoutingID,ClassVariable,Implementations,
+  ImplementationIndexOf(Implementations,DefaultSelect));
+end;
+
+//------------------------------------------------------------------------------
+
+procedure AddRouting(ImplementationManager: TImplementationManager; RoutingID: TUIMIdentifier;
+  var FunctionVariable: Pointer; const Implementations: array of TUIMImplementationInfo);
+begin
+AddRoutingSelectIdx(ImplementationManager,RoutingID,FunctionVariable,Implementations,-1);
+end;
+
+// - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+
+procedure AddRouting(ImplementationManager: TImplementationManager; RoutingID: TUIMIdentifier;
+  var MethodVariable: TMethod; const Implementations: array of TUIMImplementationInfo);
+begin
+AddRoutingSelectIdx(ImplementationManager,RoutingID,MethodVariable,Implementations,-1);
+end;
+
+// - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+
+procedure AddRouting(ImplementationManager: TImplementationManager; RoutingID: TUIMIdentifier;
+  var ObjectVariable: TObject; const Implementations: array of TUIMImplementationInfo);
+begin
+AddRoutingSelectIdx(ImplementationManager,RoutingID,ObjectVariable,Implementations,-1);
+end;
+
+// - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+
+procedure AddRouting(ImplementationManager: TImplementationManager; RoutingID: TUIMIdentifier;
+  var ClassVariable: TClass; const Implementations: array of TUIMImplementationInfo);
+begin
+AddRoutingSelectIdx(ImplementationManager,RoutingID,ClassVariable,Implementations,-1);
 end;
 
 
