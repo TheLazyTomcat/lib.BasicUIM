@@ -19,7 +19,7 @@
 
   Version 1.2.1 (2025-12-08)
 
-  Last change 2025-12-08
+  Last change 2025-12-16
 
   ©2023-2025 František Milt
 
@@ -2076,7 +2076,7 @@ RoutingObject := ImplementationManager.RoutingAddObj(RoutingID,FunctionVariable)
 ExpectedImplementationType := RoutToImplType(rtFunction);
 For i := Low(Implementations) to High(Implementations) do
   If Implementations[i].Implementor.ImplementorType <> ExpectedImplementationType then
-    raise EUIMInvalidValue.CreateFmt('AddRouting: Implementor #%d type mismatch.',[i]);
+    raise EUIMInvalidValue.CreateFmt('AddRoutingSelectIdx: Implementor #%d type mismatch.',[i]);
 // traverse provided implementations and add them for the new routing
 For i := Low(Implementations) to High(Implementations) do
   begin
@@ -2112,7 +2112,7 @@ RoutingObject := ImplementationManager.RoutingAddObj(RoutingID,MethodVariable);
 ExpectedImplementationType := RoutToImplType(rtMethod);
 For i := Low(Implementations) to High(Implementations) do
   If Implementations[i].Implementor.ImplementorType <> ExpectedImplementationType then
-    raise EUIMInvalidValue.CreateFmt('AddRouting: Implementor #%d type mismatch.',[i]);
+    raise EUIMInvalidValue.CreateFmt('AddRoutingSelectIdx: Implementor #%d type mismatch.',[i]);
 For i := Low(Implementations) to High(Implementations) do
   begin
     ImplementationFlags := [];
@@ -2145,7 +2145,7 @@ RoutingObject := ImplementationManager.RoutingAddObj(RoutingID,ObjectVariable);
 ExpectedImplementationType := RoutToImplType(rtObject);
 For i := Low(Implementations) to High(Implementations) do
   If Implementations[i].Implementor.ImplementorType <> ExpectedImplementationType then
-    raise EUIMInvalidValue.CreateFmt('AddRouting: Implementor #%d type mismatch.',[i]);
+    raise EUIMInvalidValue.CreateFmt('AddRoutingSelectIdx: Implementor #%d type mismatch.',[i]);
 For i := Low(Implementations) to High(Implementations) do
   begin
     ImplementationFlags := [];
@@ -2178,7 +2178,7 @@ RoutingObject := ImplementationManager.RoutingAddObj(RoutingID,ClassVariable);
 ExpectedImplementationType := RoutToImplType(rtClass);
 For i := Low(Implementations) to High(Implementations) do
   If Implementations[i].Implementor.ImplementorType <> ExpectedImplementationType then
-    raise EUIMInvalidValue.CreateFmt('AddRouting: Implementor #%d type mismatch.',[i]);
+    raise EUIMInvalidValue.CreateFmt('AddRoutingSelectIdx: Implementor #%d type mismatch.',[i]);
 For i := Low(Implementations) to High(Implementations) do
   begin
     ImplementationFlags := [];
