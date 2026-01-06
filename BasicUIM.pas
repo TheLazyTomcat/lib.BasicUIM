@@ -13,15 +13,16 @@
     function calls, method calls, objects and classes via variables.
 
     Note that it was written for a specific purpose, and was never meant to be
-    some universal library. Threfore there is not much functionality and also
+    some universal library. Therefore there is not much functionality and also
     absolutely no documentation. But, I am open to suggestions, if anyone will
-    be interested.
+    be interested - eg. I might add some functionality or write documentation
+    (at least in the form of notes and comments).
 
-  Version 1.2.1 (2025-12-08)
+  Version 1.2.2 (2026-01-06)
 
-  Last change 2025-12-16
+  Last change 2026-01-06
 
-  ©2023-2025 František Milt
+  ©2023-2026 František Milt
 
   Contacts:
     František Milt: frantisek.milt@gmail.com
@@ -79,7 +80,7 @@ unit BasicUIM;
 }
 {$IF Defined(BasicUIM_UseAuxExceptions)}
   {$DEFINE UseAuxExceptions}
-{$IFEND} 
+{$IFEND}
 
 //------------------------------------------------------------------------------
 
@@ -335,7 +336,7 @@ type
     procedure Initialize; virtual;
     procedure Finalize; virtual;
     Function RoutingAdd(RoutingID: TUIMIdentifier; RoutingType: TUIMRoutingType; RoutingVarAddr: Pointer): Integer; overload; virtual;
-    procedure RoutingFinal(var Routing: TUIMRouting); virtual;
+    procedure RoutingFinal(var Routing: TUIMRouting; RemoveFromGroups: Boolean); virtual;
   public
     constructor Create;
     destructor Destroy; override;
@@ -1563,7 +1564,7 @@ If Value >= 0 then
         If Value < fRoutingCount then
           begin
             For i := Value to RoutingHighIndex do
-              RoutingFinal(fRoutings[i]);
+              RoutingFinal(fRoutings[i],True);
             fRoutingCount := Value;
           end;
         SetLength(fRoutings,Value);
@@ -1624,10 +1625,9 @@ end;
 procedure TImplementationManager.Finalize;
 begin
 {
-  Call to RoutingClear would remove all routings from groups one by one, which
-  is a long process and also pointless, since they will be freed anyway.
-  So first remove all groups - any attempt of removing routing from groups then
-  just encounters empty group list.
+  RoutingClear first clears all existing groups and only then removes the
+  individual routings. To optimize it, we first delete all groups so they
+  are not acessed at all when clearing the routings list.
 }
 RoutingGroupClear;
 RoutingClear;
@@ -1658,12 +1658,13 @@ end;
 
 //------------------------------------------------------------------------------
 
-procedure TImplementationManager.RoutingFinal(var Routing: TUIMRouting);
+procedure TImplementationManager.RoutingFinal(var Routing: TUIMRouting; RemoveFromGroups: Boolean);
 var
   i:  Integer;
 begin
-For i := RoutingGroupLowIndex to RoutingGroupHighIndex do
-  fRoutingGroups[i].Remove(Routing);
+If RemoveFromGroups then
+  For i := RoutingGroupLowIndex to RoutingGroupHighIndex do
+    fRoutingGroups[i].Remove(Routing);
 FreeAndNil(Routing);
 end;
 
@@ -1825,7 +1826,7 @@ var
 begin
 If RoutingCheckIndex(Index) then
   begin
-    RoutingFinal(fRoutings[Index]);
+    RoutingFinal(fRoutings[Index],True);
     For i := Index to Pred(RoutingHighIndex) do
       fRoutings[i] := fRoutings[i + 1];
     Dec(fRoutingCount);
@@ -1839,8 +1840,15 @@ procedure TImplementationManager.RoutingClear;
 var
   i:  Integer;
 begin
+// first clear all groups...
+For i := RoutingGroupLowIndex to RoutingGroupHighIndex do
+  fRoutingGroups[i].Clear;
+{
+  ...and then remove individual routings. Also do not even attempt to remove
+  them from groups, because all groups have already been cleared.
+}
 For i := RoutingLowIndex to RoutingHighIndex do
-  RoutingFinal(fRoutings[i]);
+  RoutingFinal(fRoutings[i],False);
 SetLength(fRoutings,0);
 fRoutingCount := 0;
 end;
