@@ -20,7 +20,7 @@
 
   Version 1.2.2 (2026-01-06)
 
-  Last change 2026-01-06
+  Last change 2026-01-12
 
   ©2023-2026 František Milt
 
@@ -392,6 +392,16 @@ type
                                      Helpers                                                                   
 --------------------------------------------------------------------------------
 ===============================================================================}
+const
+  // some nil constants
+  NilPointer:   Pointer = nil;      NilPtr:   Pointer = nil;
+  NilFunction:  Pointer = nil;      NilFce:   Pointer = nil;
+  NilMethod:    TMethod = (
+                  Code: nil;
+                  Data: nil);
+  NilObject:    TObject = nil;      NilObj:   TObject = nil;
+  NilClass:     TClass  = nil;      NilCls:   TClass  = nil;
+
 type
   TUIMImplementationInfo = record
     Identifier:   TUIMIdentifier;
